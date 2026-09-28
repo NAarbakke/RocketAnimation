@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kestrel Engine Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Saira+Condensed:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="/src/shared/lab.css">
+
+<div class="app">
+  <div class="stage" id="stage">
+    <canvas id="c" aria-label="Interactive 3D cutaway of a liquid-propellant rocket engine"></canvas>
+    <div id="labels"></div>
+    <div class="title">
+      <nav class="labs" aria-label="Labs"><a href="index.html">Launch</a><a href="engine.html" aria-current="page">Liquid engine</a><a href="srm.html">Solid motor</a></nav>
+      <h1>KR-1 Liquid Engine</h1>
+      <p>Gas-generator cycle · drag to orbit · scroll to zoom · click a number to learn</p>
+    </div>
+    <div class="viewctl">
+      <button class="btn" id="bCut" aria-pressed="true">Cutaway</button>
+      <button class="btn" id="bLab" aria-pressed="true">Labels</button>
+      <button class="btn" id="bSlow" aria-pressed="false">Slow-mo</button>
+      <button class="btn" id="bSound" aria-pressed="false">Sound</button>
+      <select class="btn" id="field" aria-label="Colour the gas by">
+        <option value="T">Gas: temperature</option>
+        <option value="p">Gas: pressure</option>
+        <option value="M">Gas: Mach number</option>
+        <option value="v">Gas: velocity</option>
+      </select>
+    </div>
+    <div class="caption" id="cap"></div>
+    <div class="legend">
+      <span class="eyebrow" id="legName"></span>
+      <div class="ramp" id="ramp"></div>
+      <div class="ends"><span id="legA"></span><span id="legB"></span><span id="legC"></span></div>
+    </div>
+    <section class="tour" id="tour" aria-live="polite">
+      <header><span class="eyebrow" id="tStep"></span><button class="mini" id="tMin" aria-label="Minimise tour" aria-expanded="true">–</button></header>
+      <h2 id="tTitle"></h2>
+      <div class="body" id="tBody"></div>
+      <div class="try" id="tTry"></div>
+      <nav><button class="btn" id="tPrev">‹ Prev</button><div class="dots" id="tDots"></div><button class="btn" id="tNext">Next ›</button></nav>
+    </section>
+    <div id="err" hidden>WebGL is not available in this browser, so the engine cannot render.</div>
+  </div>
+
+  <aside class="panel">
+    <section class="status">
+      <div><span class="eyebrow">Engine state</span><b id="state">Safed</b></div>
+      <button class="btn big" id="bRun">Ignite</button>
+    </section>
+
+    <section>
+      <h3>Propellants</h3>
+      <div class="seg" role="radiogroup" aria-label="Propellant combination" id="props">
+        <button role="radio" data-p="rp1" aria-checked="true">LOX / RP-1</button>
+        <button role="radio" data-p="ch4" aria-checked="false">LOX / CH₄</button>
+        <button role="radio" data-p="lh2" aria-checked="false">LOX / LH₂</button>
+      </div>
+      <p class="note" id="propNote"></p>
+    </section>
+
+    <section class="ctl">
+      <h3>Controls</h3>
+      <div class="sl"><label for="sThr">Throttle <output id="oThr"></output></label><input type="range" id="sThr" min="40" max="110" step="1" value="100"><small>More propellant flow → higher chamber pressure → more thrust</small></div>
+      <div class="sl"><label for="sOF">Mixture ratio O/F <output id="oOF"></output></label><input type="range" id="sOF" step="0.02"><small id="ofHint"></small></div>
+      <div class="sl"><label for="sEps">Expansion ratio Aₑ/Aₜ <output id="oEps"></output></label><input type="range" id="sEps" min="4" max="100" step="0.5" value="16"><small>Nozzle exit area ÷ throat area. This reshapes the bell.</small></div>
+      <div class="sl"><label for="sAlt">Altitude <output id="oAlt"></output></label><input type="range" id="sAlt" min="0" max="100" step="0.5" value="0"><small id="altHint"></small></div>
+      <button class="btn" id="bMatch">Match nozzle to this altitude</button>
+    </section>
+
+    <section>
+      <h3>Performance <span class="badge" id="expBadge"></span></h3>
+      <div class="grid">
+        <div class="ro"><label>Thrust</label><b id="rF"></b><span id="rF2"></span></div>
+        <div class="ro"><label>Specific impulse</label><b id="rIsp"></b><span id="rIsp2"></span></div>
+        <div class="ro"><label>Mass flow</label><b id="rMd"></b><span id="rMd2"></span></div>
+        <div class="ro"><label>Chamber</label><b id="rPc"></b><span id="rPc2"></span></div>
+        <div class="ro"><label>Exhaust velocity</label><b id="rVe"></b><span id="rVe2"></span></div>
+        <div class="ro"><label>Exit Mach</label><b id="rMe"></b><span id="rMe2"></span></div>
+        <div class="ro"><label>Exit pressure</label><b id="rPe"></b><span id="rPe2"></span></div>
+        <div class="ro"><label>Turbopump</label><b id="rTp"></b><span id="rTp2"></span></div>
+      </div>
+    </section>
+
+    <section>
+      <h3>Where the thrust comes from</h3>
+      <div class="eq" id="eq"></div>
+      <div class="split"><i id="spMom" style="background:var(--amber)"></i><i id="spPr"></i></div>
+      <div class="keys"><span><i style="background:var(--amber)"></i>momentum ṁ·vₑ</span><span><i id="kPr"></i>pressure (pₑ − pₐ)·Aₑ</span></div>
+    </section>
+
+    <section class="chart">
+      <h3>Inside the nozzle <span>hover to probe the flow</span></h3>
+      <canvas id="cvP" aria-label="Chart of pressure, temperature, velocity and Mach number from injector to nozzle exit"></canvas>
+      <div class="tip" id="tipP" hidden></div>
+      <div class="keys">
+        <span><i style="background:var(--cyan)"></i>pressure p/p꜀</span>
+        <span><i style="background:var(--amber)"></i>temperature T/T꜀</span>
+        <span><i style="background:var(--violet)"></i>velocity v/vₑ</span>
+        <span><i style="background:var(--ink)"></i>Mach (right axis)</span>
+      </div>
+    </section>
+
+    <section class="chart">
+      <h3>Isp vs altitude <span>current settings</span></h3>
+      <canvas id="cvA" aria-label="Chart of specific impulse against altitude for this nozzle and for a perfectly matched nozzle"></canvas>
+      <div class="keys">
+        <span><i style="background:var(--amber)"></i>this nozzle</span>
+        <span><i style="background:repeating-linear-gradient(90deg,var(--ink) 0 3px,transparent 3px 5px)"></i>nozzle matched to each altitude</span>
+        <span><i style="background:var(--bad)"></i>flow separation</span>
+      </div>
+    </section>
+
+    <p class="foot">Model: ideal quasi-one-dimensional isentropic flow through the nozzle drawn on screen, frozen composition, with simplified fits for combustion temperature and exhaust molecular weight. Flow separation uses the Summerfield criterion (pₑ &lt; 0.35 pₐ). Real engines land about 3–6 % below these ideal numbers. Particle speeds in the chamber are exaggerated so you can see them move.</p>
+  </aside>
+</div>
+
+<script type="module" src="/src/engine/main.js"></script>
+</html>

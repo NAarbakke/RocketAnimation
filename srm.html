@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kestrel Solid Motor Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Saira+Condensed:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="/src/shared/lab.css">
+<style>
+  .seg.five { grid-template-columns: repeat(5, 1fr); }
+  .timeline { position: absolute; left: 16px; right: 16px; bottom: 14px; display: flex; align-items: center; gap: 10px; }
+  .timeline input { flex: 1; margin: 0; }
+  .timeline output { font-variant-numeric: tabular-nums; min-width: 128px; text-align: right; color: var(--soft); text-shadow: 0 1px 6px #000; }
+  .stage .tour { bottom: 60px; }
+  .stage .legend { bottom: 60px; }
+  .busy { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; font-family: var(--cond); font-weight: 600; letter-spacing: .22em; text-transform: uppercase; color: var(--dim); }
+  .busy[hidden] { display: none; }
+  .cadbox { border: 1px dashed var(--line2); padding: 10px 12px; line-height: 1.6; color: var(--soft); font-size: 11px; }
+  .cadbox code { color: var(--amber); }
+  .cadbox b { color: var(--ink); font-weight: 500; }
+  .warn { color: var(--bad); }
+  /* ?film: the 3D stage alone, full frame, for the HyperFrames render in video/ */
+  .film .app { display: block; }
+  .film .app > :not(.stage), .film .stage > :not(canvas):not(.caption) { display: none; }
+  .film .stage { position: fixed; inset: 0; }
+  .film * { transition: none !important; } /* frames are stepped, not played in real time */
+  @media (max-width: 900px) { .stage .tour { bottom: 54px; } .timeline output { min-width: 96px; font-size: 11px; } }
+</style>
+
+<div class="app">
+  <div class="stage" id="stage">
+    <canvas id="c" aria-label="Interactive 3D cutaway of a solid rocket motor"></canvas>
+    <div id="labels"></div>
+    <div class="title">
+      <nav class="labs" aria-label="Labs"><a href="index.html">Launch</a><a href="engine.html">Liquid engine</a><a href="srm.html" aria-current="page">Solid motor</a></nav>
+      <h1>KS-1 Solid Motor</h1>
+      <p>Drag to orbit · scroll to zoom · click a number to learn · space plays or pauses the burn</p>
+    </div>
+    <div class="viewctl">
+      <button class="btn" id="bCut" aria-pressed="true">Cutaway</button>
+      <button class="btn" id="bLab" aria-pressed="true">Labels</button>
+      <button class="btn" id="bSpeed" aria-pressed="false" title="Play the burn in real time instead of fitting it to about 15 s">Real time</button>
+    </div>
+    <div class="caption" id="cap"></div>
+    <div class="legend">
+      <span class="eyebrow">Cut face</span>
+      <div class="note" style="margin-top:6px" id="legNote">Faint lines are where the flame front will be at later times, one every <b id="legIso"></b>.</div>
+    </div>
+    <section class="tour" id="tour" aria-live="polite">
+      <header><span class="eyebrow" id="tStep"></span><button class="mini" id="tMin" aria-label="Minimise tour" aria-expanded="true">–</button></header>
+      <h2 id="tTitle"></h2>
+      <div class="body" id="tBody"></div>
+      <div class="try" id="tTry"></div>
+      <nav><button class="btn" id="tPrev">‹ Prev</button><div class="dots" id="tDots"></div><button class="btn" id="tNext">Next ›</button></nav>
+    </section>
+    <div class="timeline">
+      <button class="btn" id="bPlay">Ignite</button>
+      <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Burn time">
+      <output id="tLabel">T+0.0 s</output>
+    </div>
+    <div class="busy" id="busy" hidden>Computing burn-back…</div>
+    <div id="err" hidden>WebGL 2 is not available in this browser, so the motor cannot render.</div>
+  </div>
+
+  <aside class="panel">
+    <section class="status">
+      <div><span class="eyebrow">Motor state</span><b id="state">Ready</b></div>
+      <button class="btn big" id="bRun">Ignite</button>
+    </section>
+
+    <section>
+      <h3>Grain geometry <span id="shapeTag"></span></h3>
+      <div class="seg five" role="radiogroup" aria-label="Grain geometry" id="grains">
+        <button role="radio" data-g="bates" aria-checked="true">BATES</button>
+        <button role="radio" data-g="star" aria-checked="false">Star</button>
+        <button role="radio" data-g="finocyl" aria-checked="false">Finocyl</button>
+        <button role="radio" data-g="endburner" aria-checked="false">End</button>
+        <button role="radio" data-g="cad" aria-checked="false">CAD</button>
+      </div>
+      <p class="note" id="grainNote"></p>
+    </section>
+
+    <section>
+      <h3>Propellant</h3>
+      <div class="seg" role="radiogroup" aria-label="Propellant" id="props">
+        <button role="radio" data-p="apcp" aria-checked="true">APCP</button>
+        <button role="radio" data-p="pban" aria-checked="false">PBAN</button>
+        <button role="radio" data-p="knsb" aria-checked="false">KNSB</button>
+      </div>
+      <p class="note" id="propNote"></p>
+    </section>
+
+    <section class="ctl">
+      <h3>Controls</h3>
+      <div class="sl"><label for="sThroat">Throat diameter <output id="oThroat"></output></label><input type="range" id="sThroat" min="70" max="130" step="1" value="100"><small>Smaller throat → higher Kn → much higher pressure (there is no throttle on a solid)</small></div>
+      <div class="sl"><label for="sTemp">Grain temperature <output id="oTemp"></output></label><input type="range" id="sTemp" min="-40" max="60" step="1" value="21"><small>Propellant burns faster when warm, so pressure and thrust rise and burn time drops</small></div>
+      <div class="sl"><label for="sAlt">Altitude <output id="oAlt"></output></label><input type="range" id="sAlt" min="0" max="100" step="0.5" value="0"><small id="altHint"></small></div>
+    </section>
+
+    <section>
+      <h3>At this moment <span class="badge" id="badge"></span></h3>
+      <div class="grid">
+        <div class="ro"><label>Thrust</label><b id="rF"></b><span id="rF2"></span></div>
+        <div class="ro"><label>Chamber pressure</label><b id="rPc"></b><span id="rPc2"></span></div>
+        <div class="ro"><label>Kn = A<sub>b</sub>/A<sub>t</sub></label><b id="rKn"></b><span id="rKn2"></span></div>
+        <div class="ro"><label>Burn rate</label><b id="rR"></b><span id="rR2"></span></div>
+        <div class="ro"><label>Mass flow</label><b id="rMd"></b><span id="rMd2"></span></div>
+        <div class="ro"><label>Web burned</label><b id="rW"></b><span id="rW2"></span></div>
+      </div>
+    </section>
+
+    <section>
+      <h3>Whole burn</h3>
+      <div class="grid">
+        <div class="ro"><label>Total impulse</label><b id="rIt"></b><span id="rIt2"></span></div>
+        <div class="ro"><label>Burn time</label><b id="rTb"></b><span id="rTb2"></span></div>
+        <div class="ro"><label>Delivered Isp</label><b id="rIsp"></b><span id="rIsp2"></span></div>
+        <div class="ro"><label>Peak pressure</label><b id="rPmax"></b><span id="rPmax2"></span></div>
+      </div>
+    </section>
+
+    <section class="chart">
+      <h3>Thrust &amp; pressure <span>click to scrub</span></h3>
+      <canvas id="cvT" aria-label="Thrust and chamber pressure against time"></canvas>
+      <div class="keys"><span><i style="background:var(--amber)"></i>thrust</span><span><i style="background:var(--cyan)"></i>chamber pressure (right axis)</span><span><i style="background:var(--bad)"></i>case limit (MEOP)</span></div>
+    </section>
+
+    <section class="chart">
+      <h3>Burning area vs web</h3>
+      <canvas id="cvA" aria-label="Burning surface area against web burned"></canvas>
+      <div class="keys"><span><i style="background:var(--violet)"></i>burning surface A<sub>b</sub></span><span><i style="background:var(--ink)"></i>now</span></div>
+    </section>
+
+    <section>
+      <h3>Your CAD model</h3>
+      <div class="cadbox" id="cadBox"></div>
+    </section>
+
+    <p class="foot">Model: the grain is voxelised and every point gets its distance to the gas-exposed surface (3-D Euclidean distance transform). The surface regresses at one rate everywhere, so that distance is the web burned when the flame arrives. Burning area Ab(w) = dV/dw. Chamber pressure is quasi-steady, from mass generated = mass through the choked throat: Pc = (a·ρ·c*·Kn)^(1/(1−n)). Burn rate r = a·Pcⁿ with temperature sensitivity σp. Thrust = C<sub>F</sub>·Pc·Aₜ from ideal nozzle flow. Not modelled: erosive burning, throat erosion, two-phase losses and the ignition transient (the ramp is cosmetic).</p>
+  </aside>
+</div>
+<script type="module" src="/src/srm/main.ts"></script>
+</html>

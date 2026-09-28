@@ -1,0 +1,8 @@
+node_modules/
+dist/
+cad/.venv/
+__pycache__/
+# npm run video: built site copy + rendered output
+video/site/
+video/snapshots/
+renders/

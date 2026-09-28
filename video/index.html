@@ -1,0 +1,26 @@
+<!doctype html>
+<!-- HyperFrames composition: films the solid-motor lab. `npm run video` builds the site into ./site and renders renders/srm.mp4. -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <style>
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #06080d; }
+      iframe { width: 1920px; height: 1080px; border: 0; display: block; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="18" data-width="1920" data-height="1080">
+      <iframe id="lab" src="site/srm.html?film"></iframe>
+    </div>
+    <script>
+      // The lab renders a frame when told the time (window.__film in src/srm/main.ts); this just forwards HyperFrames' clock.
+      const lab = document.getElementById('lab');
+      const film = new Promise(ok => { const poll = () => (lab.contentWindow?.__film ? ok(lab.contentWindow.__film) : setTimeout(poll, 50)); poll(); });
+      window.__hf = window.__hf || {};
+      window.__hf.buildReady = window.__hf.buildReady || {};
+      window.__hf.buildReady.lab = film.then(f => f.ready);
+      window.addEventListener('hf-seek', e => e.detail.waitUntil(film.then(f => f.ready.then(() => f.seek(e.detail.time)))));
+    </script>
+  </body>
+</html>

@@ -53,7 +53,7 @@ function machFromArea(ar, g, sup) {
 }
 const pRatio = (M, g) => Math.pow(1 + (g - 1) / 2 * M * M, -g / (g - 1));
 const machFromP = (pr, g) => Math.sqrt(2 / (g - 1) * (Math.pow(pr, -(g - 1) / g) - 1));
-const ambient = km => 101325 * Math.exp(-km / 7.2); // ponytail: single scale height, fine to ~±30 % up to 100 km
+const ambient = km => 101325 * Math.exp(-km / 7.2); // single scale height, fine to ~±30 % up to 100 km
 
 function solve(p, of, thr, eps, km, run = 1) {
   const { Tc, R, g, M } = gas(p, of);

@@ -27,6 +27,7 @@ as a last resort. See `src/shared/stage.ts`.
 ```
 index.html, engine.html, srm.html   pages
 src/shared/     stage (renderer + post + quality), nozzle gas dynamics, plume, lab.css
+src/launch/     launch animation (migrated as-is, plain JS module)
 src/engine/     liquid-engine lab (migrated as-is, plain JS module)
 src/srm/        solid-motor lab: main, burn worker, ballistics, CAD loader, grain volume renderer
 cad/srm.py      default solid motor (build123d), exports public/models/srm.glb + srm.json
@@ -61,7 +62,9 @@ public/models/  CAD exports the site loads
 - **CAD import for the liquid engine.** The same pattern applies: slice a `chamber`/`nozzle` part for the
   contour that drives the 1-D flow, spin `rotor*` parts, and take flow paths from a manifest. The engine
   code is still procedural.
-- The launch page still uses its original single-file setup (CDN scripts, 4× MSAA, 1.75× render scale),
-  so it is the heaviest page on integrated GPUs.
+- **Launch page shaders.** The log-depth `#include`s are spliced mid-line, so the earth, clouds, atmosphere,
+  flood beams, plumes and smoke/fire shaders never compile (see the note above `LOGV` in `src/launch/main.js`).
+  Fixing that brings them back but drops the page to ~7 fps on Intel UHD and changes the look, so it needs a
+  tuning pass (cheaper earth/cloud noise) before it ships.
 - Solid-motor physics omits erosive burning, throat erosion and the ignition transient. The footnote on
   the page says so.

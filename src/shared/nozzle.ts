@@ -19,7 +19,7 @@ export function machFromArea(ar: number, g: number, sup: boolean): number {
 
 export const pRatio = (M: number, g: number) => Math.pow(1 + ((g - 1) / 2) * M * M, -g / (g - 1));
 export const machFromP = (pr: number, g: number) => Math.sqrt((2 / (g - 1)) * (Math.pow(pr, -(g - 1) / g) - 1));
-export const ambient = (km: number) => 101325 * Math.exp(-km / 7.2); // ponytail: one scale height, ±30 % to 100 km
+export const ambient = (km: number) => 101325 * Math.exp(-km / 7.2); // one scale height, ±30 % to 100 km
 
 export interface NozzleState { CF: number; Me: number; pe: number; sep: boolean; epsEff: number; }
 

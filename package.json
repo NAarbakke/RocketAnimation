@@ -8,7 +8,9 @@
     "preview": "vite preview",
     "cad": "cad/.venv/Scripts/python cad/srm.py",
     "cad:watch": "cad/.venv/Scripts/python cad/srm.py --watch",
-    "video": "vite build --base ./ --outDir video/site --emptyOutDir && npx -y hyperframes render video --output renders/srm.mp4"
+    "video": "vite build --base ./ --outDir video/site --emptyOutDir && node video/hf.js render video --output video/out/srm-hyperframes.mp4",
+    "render": "node video/render.js",
+    "sample": "node video/render.js index.html -d 15 -o video/clips/launch.mp4 && node video/render.js engine.html -d 8 -o video/clips/engine.mp4 && node video/render.js srm.html?film -d 9 -o video/clips/srm.mp4 && node video/hf.js render video -c showcase.html --output video/out/showcase.mp4"
   },
   "dependencies": {
     "three": "0.147.0"
@@ -16,7 +18,13 @@
   "devDependencies": {
     "@types/node": "^22.20.4",
     "@types/three": "0.147.1",
+    "ffmpeg-static": "^5.3.0",
+    "ffprobe-static": "^3.1.0",
+    "playwright": "^1.64.0",
     "typescript": "^5.6.0",
     "vite": "^6.0.0"
+  },
+  "allowScripts": {
+    "ffmpeg-static@5.3.0": true
   }
 }

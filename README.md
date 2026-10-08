@@ -26,6 +26,7 @@ as a last resort. See `src/shared/stage.ts`.
 
 ```
 index.html, engine.html, srm.html   pages
+video/          everything video: render.js (Playwright), hf.js + compositions (HyperFrames), out/ for finished files
 src/shared/     stage (renderer + post + quality), nozzle gas dynamics, plume, lab.css
 src/launch/     launch animation (migrated as-is, plain JS module)
 src/engine/     liquid-engine lab (migrated as-is, plain JS module)
@@ -56,6 +57,31 @@ public/models/  CAD exports the site loads
   `{"units": "mm", "inhibit": ["forward", "aft"], "meop_MPa": 9}`. Inhibited ends are treated as bonded and
   don't burn; `meop_MPa` is the case pressure limit used for burst warnings.
 - The grain is assumed case-bonded on its outside. Faces open to the port or to the end gaps burn.
+
+## Rendering video
+
+```bash
+npm run render -- "srm.html?film" --duration 18        # video/out/srm.mp4, 1920x1080 @ 30 fps
+npm run render -- index.html --duration 60 --fps 60    # the launch, HUD included
+npm run render -- engine.html --size 1280x720 --out video/out/engine-720.mp4
+```
+
+`video/render.js` starts the Vite dev server, opens the page in headless Chrome through Playwright, steps it
+one frame at a time on a virtual clock and pipes the screenshots to ffmpeg (H.264). Frames are stepped rather
+than recorded live, so the result is smooth however slow the GPU is. `--click <selector>` (repeatable) presses
+a control before the first frame. A page that sets `window.__film` (the solid motor with `?film`: 3D stage
+only, ignition after 1 s, slow orbit) is given the time directly; any other page is driven through
+`requestAnimationFrame`, so CSS transitions there still run in real time and look snappier than live.
+`renderVideo()` is exported for use from other scripts. ffmpeg comes from the `ffmpeg-static` package
+(`FFMPEG_PATH` overrides it); the browser is the installed Chrome (`--channel msedge` or `chromium` to change).
+
+HyperFrames handles the editing side. Both commands go through `video/hf.js`, which runs the HyperFrames CLI
+with the bundled ffmpeg and ffprobe on `PATH`:
+
+- `npm run video` films the solid motor directly: it builds the site into `video/site` and renders the
+  composition in `video/index.html`, which drives the lab's `window.__film` clock, to `video/out/srm-hyperframes.mp4`.
+- `npm run sample` uses both tools: Playwright renders a clip of each page into `video/clips/`, then
+  HyperFrames cuts them together with titles (`video/showcase.html`) into `video/out/showcase.mp4`.
 
 ## Not done yet
 

@@ -24,6 +24,8 @@ const modelWatch = (): Plugin => ({
 
 export default defineConfig({
   plugins: [modelWatch()],
+  // the Python venv is ~21k files: crawling it stalled the dev server for ~50 s on start
+  server: { watch: { ignored: ['**/cad/.venv/**', '**/dist/**', '**/video/**'] } },
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 800, // three.js itself (~630 kB), shared by all pages

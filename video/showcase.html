@@ -1,0 +1,66 @@
+<!doctype html>
+<!-- HyperFrames composition: cuts the three Playwright-rendered clips in ./clips into one film with titles.
+     `npm run sample` renders the clips (render.js) and then this, to out/showcase.mp4. -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Bahnschrift"; src: local("Bahnschrift"); } /* ships with Windows; declared so the HyperFrames lint accepts it */
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #06080d; }
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #06080d; color: #eef2f8; font-family: "Bahnschrift", "Segoe UI", system-ui, sans-serif; }
+      .clip { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+      video.clip { object-fit: cover; }
+      .card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; text-align: center; }
+      .card h1 { margin: 0; font-size: 150px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+      .card p { margin: 0; font-size: 34px; letter-spacing: 0.32em; text-transform: uppercase; color: #ffb454; }
+      .card small { font-size: 24px; letter-spacing: 0.2em; text-transform: uppercase; color: #7f8aa0; }
+      /* lower third: sits above the footage, clear of the pages' own HUD at the bottom */
+      .tag { inset: auto auto 150px 96px; width: auto; height: auto; padding: 22px 34px; border-left: 6px solid #ffb454; background: rgba(6, 8, 13, 0.78); }
+      .tag b { display: block; font-size: 52px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+      .tag span { display: block; margin-top: 8px; font-size: 26px; letter-spacing: 0.08em; color: #aeb8cb; }
+      #fade { background: #06080d; opacity: 0; z-index: 10; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="29" data-width="1920" data-height="1080" data-fps="30">
+      <div id="title" class="clip card" data-start="0" data-duration="3" data-track-index="0">
+        <p>Kestrel labs</p>
+        <h1>How rockets burn</h1>
+        <small>Launch · liquid engine · solid motor</small>
+      </div>
+
+      <!-- launch clip starts at T-10 s; skip to just before ignition -->
+      <video id="v1" class="clip" src="clips/launch.mp4" data-start="3" data-duration="8" data-media-start="6.5" data-track-index="0" muted playsinline></video>
+      <div id="t1" class="clip tag" data-start="3.6" data-duration="4.5" data-track-index="1"><b>Launch</b><span>Ignition at T-3 s, clamps release at zero</span></div>
+
+      <video id="v2" class="clip" src="clips/engine.mp4" data-start="11" data-duration="8" data-track-index="0" muted playsinline></video>
+
+      <video id="v3" class="clip" src="clips/srm.mp4" data-start="19" data-duration="8" data-media-start="0.5" data-track-index="0" muted playsinline></video>
+      <div id="t3" class="clip tag" data-start="19.6" data-duration="4.5" data-track-index="1"><b>Solid motor</b><span>The grain burns back from the port, and the thrust follows the burning area</span></div>
+
+      <div id="end" class="clip card" data-start="27" data-duration="2" data-track-index="0">
+        <p>Kestrel labs</p>
+        <small>Clips: Playwright + ffmpeg · Edit: HyperFrames</small>
+      </div>
+
+      <div id="fade" class="clip" data-start="0" data-duration="29" data-track-index="2"></div>
+    </div>
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      tl.from('#title p', { opacity: 0, y: 30, duration: 0.6 }, 0.2)
+        .from('#title h1', { opacity: 0, y: 40, duration: 0.7 }, 0.45)
+        .from('#title small', { opacity: 0, duration: 0.6 }, 1.0);
+      // dip to black across every cut
+      for (const t of [3, 11, 19, 27]) tl.to('#fade', { opacity: 1, duration: 0.3 }, t - 0.3).to('#fade', { opacity: 0, duration: 0.3 }, t);
+      for (const [id, t] of [['#t1', 3.6], ['#t3', 19.6]]) {
+        tl.from(id, { opacity: 0, x: -60, duration: 0.5 }, t).to(id, { opacity: 0, duration: 0.4 }, t + 4.1);
+      }
+      tl.from('#end p', { opacity: 0, duration: 0.5 }, 27.2).from('#end small', { opacity: 0, duration: 0.5 }, 27.5)
+        .to('#fade', { opacity: 1, duration: 0.4 }, 28.6);
+      window.__timelines = window.__timelines || {};
+      window.__timelines.main = tl;
+    </script>
+  </body>
+</html>
